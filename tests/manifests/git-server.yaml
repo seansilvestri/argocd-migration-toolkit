@@ -1,0 +1,73 @@
+---
+# Simple HTTP Git server for testing using gitea (lightweight, easy to use)
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: git-server-data
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: git-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: git-server
+  template:
+    metadata:
+      labels:
+        app: git-server
+    spec:
+      containers:
+      - name: gitea
+        image: gitea/gitea:1.21-rootless
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: GITEA__database__DB_TYPE
+          value: sqlite3
+        - name: GITEA__security__INSTALL_LOCK
+          value: "true"
+        - name: GITEA__service__DISABLE_REGISTRATION
+          value: "true"
+        - name: GITEA__server__ROOT_URL
+          value: http://git-server.default.svc.cluster.local:3000
+        - name: GITEA__repository__ENABLE_PUSH_CREATE_USER
+          value: "true"
+        - name: GITEA__repository__DEFAULT_PUSH_CREATE_PRIVATE
+          value: "false"
+        - name: GITEA__service__REQUIRE_SIGNIN_VIEW
+          value: "false"
+        - name: GITEA__repository__FORCE_PRIVATE
+          value: "false"
+        volumeMounts:
+        - name: git-data
+          mountPath: /var/lib/gitea
+      volumes:
+      - name: git-data
+        persistentVolumeClaim:
+          claimName: git-server-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-server
+  namespace: default
+spec:
+  selector:
+    app: git-server
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: http

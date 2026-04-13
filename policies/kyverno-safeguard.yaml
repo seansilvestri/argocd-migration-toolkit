@@ -1,0 +1,69 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: argocd-migration-safeguard
+  annotations:
+    policies.kyverno.io/title: ArgoCD Migration Safeguard
+    policies.kyverno.io/description: >-
+      Temporary admission control policy for ArgoCD control plane migrations.
+      Prevents ArgoCD service accounts from deleting workload resources during migration window.
+      Deploy to WORKLOAD cluster BEFORE migration, remove AFTER migration complete.
+      Note: ArgoCD cleanup/pruning operations will be delayed until policy is removed (~30 min).
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    # Block ArgoCD service accounts from deleting any workload resources
+    # Deploy to workload cluster (where applications run)
+    # Normal K8s operations continue, but ArgoCD deletions are blocked
+    - name: block-argocd-workload-deletion
+      match:
+        any:
+          - resources:
+              kinds:
+                - '*'
+              namespaces:
+                - '!kube-system'
+                - '!kube-public'
+                - '!kube-node-lease'
+                - '*'
+              operations:
+                - DELETE
+            subjects:
+              - kind: ServiceAccount
+                name: argocd-manager
+                namespace: argocd
+              - kind: ServiceAccount
+                name: argocd-manager-kcp
+                namespace: argocd
+              - kind: ServiceAccount
+                name: argocd-manager
+                namespace: kube-system
+      validate:
+        message: 'ArgoCD resource deletion blocked during migration window. Contact migration operator if this is unexpected.'
+        deny: {}
+
+    # Prevent ArgoCD from deleting CRDs or Namespaces
+    # These are cluster-critical resources that should never be deleted by ArgoCD during migration
+    - name: block-argocd-crd-namespace-deletion
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+                - CustomResourceDefinition
+              operations:
+                - DELETE
+            subjects:
+              - kind: ServiceAccount
+                name: argocd-manager
+                namespace: argocd
+              - kind: ServiceAccount
+                name: argocd-manager-kcp
+                namespace: argocd
+              - kind: ServiceAccount
+                name: argocd-manager
+                namespace: kube-system
+      validate:
+        message: 'ArgoCD cannot delete Namespaces or CRDs during migration window.'
+        deny: {}

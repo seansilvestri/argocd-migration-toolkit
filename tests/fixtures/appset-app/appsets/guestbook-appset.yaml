@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workload-cluster.guestbook-appset
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/tracking-id: "workload-cluster.apps:argoproj.io/ApplicationSet:argocd/workload-cluster.guestbook-appset"
+spec:
+  generators:
+  - list:
+      elements:
+      - env: dev
+      - env: prod
+  template:
+    metadata:
+      name: 'workload-cluster.guestbook-{{env}}'
+    spec:
+      project: default
+      source:
+        repoURL: http://git-server.default.svc.cluster.local:3000/gitea/test-repo.git
+        targetRevision: HEAD
+        path: apps/guestbook
+      destination:
+        name: workload-cluster
+        namespace: 'guestbook-{{env}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

@@ -1,0 +1,58 @@
+# Environment profiles with real credentials
+envs/
+*.env
+!examples/env-profiles/*.env
+!tests/test-configs/*.env
+
+# Generated runbooks with real cluster details (not examples)
+/runbooks/
+!examples/runbooks/
+
+# Snapshots and backups
+snapshots/
+backups/
+*.json
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Secrets and credentials (but not script names)
+*secret*.yaml
+*secret*.json
+*password*.txt
+*password*.yaml
+*.key
+*.pem
+*.crt
+# Allow scripts with these words in their names
+!*credentials.py
+!*secrets.sh
+
+# OS
+.DS_Store
+Thumbs.db

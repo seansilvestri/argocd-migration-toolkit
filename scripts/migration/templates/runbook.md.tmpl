@@ -1,0 +1,124 @@
+# Migration Runbook: `{{APP_FILE_SUMMARY}}`
+
+**Env Profile**: `{{ENV_NAME}}`  
+**Source Cluster**: `{{SOURCE_CLUSTER}}` (Argo: `{{SOURCE_ARGO_URL}}`)  
+**Target Cluster**: `{{TARGET_CLUSTER}}` (Argo: `{{TARGET_ARGO_URL}}`)
+
+> **Prep Once**
+>
+> ```bash
+> source ./tools/migrations/migration-env.sh {{ENV_SPEC}}
+> # MIG_* variables now populate all scripts; kubectl + argocd context auto-switch.
+> ```
+{{APPOFAPPS_SECTION}}
+## 1. Commit A – Prep & Bootstrap
+
+```bash
+./tools/migrations/prep-commit-a.sh{{APP_FILE_FLAGS_INLINE}}
+```
+
+_Action: Review diff, Commit, Push._
+
+_After push: Hard refresh `root-app-of-apps` in **BOTH** source AND target ArgoCD UI to immediately pick up the disabled auto-sync (otherwise wait ~3min for auto-sync). This is critical - the source must have auto-sync disabled before Pass 1._
+
+## 2. Disarm Source (Pass 1)
+
+_CRITICAL: Ensure source ArgoCD has synced the Commit A changes (auto-sync disabled) before running this step. The script will disarm parent App-of-Apps, freeze ApplicationSets, and remove finalizers in the correct order._
+
+```bash
+# Preview
+./tools/migrations/disarm-source.sh \
+    --dry-run \
+    --source {{SOURCE_PATH}} \
+    --cluster {{WORKLOAD_CLUSTER}}{{SAFE_DELETE_PARENT_FLAGS}}{{SAFE_DELETE_INCLUDE_FLAG}}
+
+# Disarm Source (auto context switches to MIG_SOURCE_KUBECONTEXT)
+./tools/migrations/disarm-source.sh \
+    --source {{SOURCE_PATH}} \
+    --cluster {{WORKLOAD_CLUSTER}}{{SAFE_DELETE_PARENT_FLAGS}}{{SAFE_DELETE_INCLUDE_FLAG}}
+```
+
+## 3. Target Manual Sync
+
+_Prereq: migration-env sourced (auto login/context) or manual `{{TARGET_LOGIN_HINT}}`._
+
+```bash
+./tools/migrations/sync-target-apps.sh --dry-run   # optional preview
+./tools/migrations/sync-target-apps.sh             # uses MIG_TARGET_* defaults
+```
+
+## 3.5. Deploy Kyverno Policy (Optional - K8s Team Only)
+
+_**OPTIONAL**: Deploy Kyverno admission policy to workload cluster right before cleanup to prevent accidental ArgoCD deletions. This is an additional safety layer that can only be applied by the Kubernetes team._
+
+```bash
+# K8s team only: Deploy cluster-scoped policy to workload cluster
+kubectl apply -f tools/migrations/kyverno-policy.yaml --context {{WORKLOAD_CLUSTER}}
+
+# Verify policy is active
+kubectl get clusterpolicy argocd-migration-safeguard --context {{WORKLOAD_CLUSTER}}
+```
+
+_Note: This ClusterPolicy blocks ArgoCD from deleting resources in workload namespaces during cleanup. **Migration can proceed safely without this policy** - the migration scripts already handle finalizer removal correctly._
+
+## 4. Cleanup Source (Pass 2)
+
+```bash
+# Preview
+./tools/migrations/cleanup-source.sh \
+    --dry-run \
+    --source {{SOURCE_PATH}} \
+    --cluster {{WORKLOAD_CLUSTER}}{{SAFE_DELETE_PARENT_FLAGS}}{{SAFE_DELETE_INCLUDE_FLAG}}
+
+# Cleanup Source (deletes disarmed resources)
+./tools/migrations/cleanup-source.sh \
+    --source {{SOURCE_PATH}} \
+    --cluster {{WORKLOAD_CLUSTER}}{{SAFE_DELETE_PARENT_FLAGS}}{{SAFE_DELETE_INCLUDE_FLAG}}
+```
+
+_Note: The script validates all target apps are Healthy/Synced before cleanup. If some apps are OutOfSync (but workloads are healthy) or still syncing, you can add `--skip-target-check` after manually verifying target apps are managing workloads correctly. Check app health in ArgoCD UI and verify workload pods are running before using this flag._
+
+_Parent apps targeted:_
+
+{{SAFE_DELETE_PARENT_LIST}}
+
+## 4.5. Remove Kyverno Policy (If Applied)
+
+_**If K8s team deployed the policy in Step 3.5**, remove it now to restore normal ArgoCD operations._
+
+```bash
+# K8s team only: Remove cluster-scoped policy from workload cluster
+kubectl delete clusterpolicy argocd-migration-safeguard --context {{WORKLOAD_CLUSTER}}
+
+# Verify policy is removed
+kubectl get clusterpolicy argocd-migration-safeguard --context {{WORKLOAD_CLUSTER}} 2>&1 | grep "NotFound"
+```
+
+_Note: After policy removal, ArgoCD will automatically reconcile any cleanup/pruning operations that were delayed during the cleanup window. **If policy was not deployed, skip this step.**_
+
+## 5. Finish Commit B (Cleanup & Enable)
+
+```bash
+./tools/migrations/prep-commit-b-cleanup.sh{{APP_FILE_FLAGS_INLINE}}
+```
+
+_Action: Review diff, Commit, Push._
+
+## 6. Final Cleanup (Source)
+
+_After Commit B removes source manifests, the root app-of-apps will auto-delete parent apps (prune: true)._
+
+```bash
+# Hard refresh root-app-of-apps in source ArgoCD UI to immediately trigger prune
+# Or wait ~3min for auto-sync to realize manifests are gone
+
+# Verify parent apps were auto-deleted
+kubectl get application -n argocd --context {{SOURCE_CLUSTER}} | grep {{WORKLOAD_CLUSTER}}
+
+# If parent apps still exist after refresh, delete manually (fallback):
+{{PARENT_DELETE_COMMANDS}}
+```
+
+---
+
+Generated via `./tools/migrations/generate-runbook.sh {{ENV_SPEC}}` on {{GENERATED_ON}}.

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+      - image: busybox:1.36
+        name: guestbook-ui
+        command: ['sh', '-c', 'echo "Guestbook running" && sleep 3600']
+        ports:
+        - containerPort: 80
