@@ -2,6 +2,18 @@
 
 This document explains the key architectural decisions and patterns used in the ArgoCD Migration Toolkit.
 
+```mermaid
+flowchart TD
+    A[Safety First] -->|Prevents workload impact| B[Zero Downtime]
+    B -->|Workloads unchanged| C[Auditability]
+    C -->|Logged actions| D[Idempotency]
+    D -->|Safe to rerun| E[Fail-Safe]
+    E -->|Stops on error| A
+    
+    classDef principle fill:#f0f8ff,stroke:#000,stroke-width:1px
+    class A,B,C,D,E principle
+```
+
 ## Core Principles
 
 1. **Safety First**: Multiple validation layers prevent workload impact
@@ -46,6 +58,44 @@ The toolkit migrates **only the App-of-Apps** - the ArgoCD Applications that man
 
 ## The Finalizer Problem
 
+```mermaid
+flowchart TD
+    subgraph Source
+        A1[App-of-Apps with finalizer]
+        A2[Child Apps with finalizers]
+        A3[Workloads]
+    end
+
+    subgraph Target
+        B1[App-of-Apps]
+        B2[Child Apps]
+        B3[Workloads]
+    end
+
+    A1 -->|Migration| B1
+    A2 -->|Migration| B2
+    A3 -->|Unchanged| B3
+
+    subgraph FinalizerProblem
+        C1[Delete App-of-Apps]
+        C2[Finalizer deletes children]
+        C3[Children delete workloads]
+    end
+
+    subgraph Solution
+        D1[Remove finalizers first]
+        D2[Delete ApplicationSets]
+        D3[Delete orphaned children]
+        D4[Delete parent App-of-Apps]
+    end
+
+    classDef problem fill:#ffcccc,stroke:#d00,stroke-width:2px
+    class C1,C2,C3 problem
+    
+    classDef solution fill:#ccffcc,stroke:#0a0,stroke-width:2px
+    class D1,D2,D3,D4 solution
+```
+
 ### Root Cause
 
 ArgoCD automatically adds `resources-finalizer.argocd.argoproj.io` to every Application it manages. This finalizer ensures ArgoCD can clean up resources when an Application is deleted.
@@ -68,7 +118,29 @@ When you delete an App-of-Apps **with finalizers intact**, ArgoCD:
 5. **Result**: All workloads are deleted (DOWNTIME)
 
 ### Solution: Two-Pass Deletion
-
+```mermaid
+flowchart TD
+    subgraph Pass1
+        A1[Disable auto-sync]
+        A2[Freeze ApplicationSets]
+        A3[Remove finalizers]
+        A1 --> A2 --> A3
+        
+        classDef disarm fill:#ffebcc,stroke:#a06000,stroke-width:2px
+        class A1,A2,A3 disarm
+    end
+    
+    subgraph Pass2
+        B1[Validate target]
+        B2[Delete ApplicationSets]
+        B3[Delete orphaned children]
+        B4[Delete parent App-of-Apps]
+        B1 --> B2 --> B3 --> B4
+        
+        classDef cleanup fill:#ccffcc,stroke:#0a0,stroke-width:2px
+        class B1,B2,B3,B4 cleanup
+    end
+```
 **Pass 1 - Disarm** (`disarm-source.sh`):
 
 1. Disable auto-sync on parent App-of-Apps
@@ -91,6 +163,29 @@ When you delete an App-of-Apps **with finalizers intact**, ArgoCD:
 - Reduces race conditions
 
 ## The `create-only` Trap
+
+```mermaid
+flowchart TD
+    subgraph Misconception
+        A1[create-only = create once]
+        A2[Never touch again]
+        A1 --> A2
+        
+        classDef wrong fill:#ffcccc,stroke:#d00,stroke-width:2px
+        class A1,A2 wrong
+    end
+    
+    subgraph Reality
+        B1[create-only = allow CREATE]
+        B2[✅ CREATE missing apps]
+        B3[❌ UPDATE existing apps]
+        B4[❌ DELETE apps]
+        B1 --> B2 --> B3 --> B4
+        
+        classDef correct fill:#ccffcc,stroke:#0a0,stroke-width:2px
+        class B1,B2,B3,B4 correct
+    end
+```
 
 ### The Misconception
 
@@ -164,6 +259,31 @@ fi
 
 ## Environment Profile System
 
+```mermaid
+classDiagram
+    class EnvironmentProfile {
+        +SOURCE_CLUSTER: string
+        +SOURCE_KUBECONTEXT: string
+        +SOURCE_ARGO_URL: string
+        +SOURCE_ARGO_LOGIN_ARGS: string
+        +TARGET_CLUSTER: string
+        +TARGET_KUBECONTEXT: string
+        +TARGET_ARGO_URL: string
+        +TARGET_ARGO_LOGIN_ARGS: string
+    }
+    
+    class MigrationEnvScript {
+        +loadProfile(profileName: string): void
+        +autoSwitchContexts(): void
+        +autoLoginArgoCD(): void
+    }
+    
+    EnvironmentProfile --> MigrationEnvScript : "Loaded by"
+    
+    classDef component fill:#f8f0ff,stroke:#800080,stroke-width:1px
+    class EnvironmentProfile,MigrationEnvScript component
+```
+
 ### Design Goals
 
 1. **Eliminate context switching errors** (running commands against wrong cluster)
@@ -205,6 +325,16 @@ source ./scripts/migration/migration-env.sh my-migration
 
 ## Validation Framework
 
+```mermaid
+flowchart TD
+    A[Pre-Migration Analysis] -->|Compatibility check| B[Snapshot/Diff]
+    B -->|State capture| C[Pod Restart Monitoring]
+    C -->|Zero downtime proof| A
+    
+    classDef validation fill:#e0f8ff,stroke:#0060a0,stroke-width:2px
+    class A,B,C validation
+```
+
 ### Three-Layer Validation
 
 **1. Pre-Migration Analysis** (`analyze-migration-compatibility.sh`):
@@ -236,6 +366,19 @@ source ./scripts/migration/migration-env.sh my-migration
 - **Restart Monitoring**: Proves zero workload impact
 
 ## Runbook Generation
+
+```mermaid
+flowchart TD
+    A[Environment Profile] --> B[Generate Runbook]
+    B --> C[Pre-filled Commands]
+    C --> D[Cluster-specific Details]
+    D --> E[Safety Checkpoints]
+    E --> F[Rollback Procedures]
+    F --> G[Final Runbook]
+    
+    classDef runbook fill:#fff0cc,stroke:#a06000,stroke-width:1px
+    class A,B,C,D,E,F,G runbook
+```
 
 ### Design Philosophy
 
@@ -294,6 +437,23 @@ The Kyverno `ClusterPolicy` provides defense-in-depth:
 
 ## Error Handling
 
+```mermaid
+flowchart TD
+    A[Script Execution] --> B[Error Detection]
+    B -->|set -e| C[Exit on error]
+    B -->|set -u| D[Exit on undefined]
+    B -->|set -o pipefail| E[Catch pipe errors]
+    C --> F[Validation Gates]
+    D --> F
+    E --> F
+    F --> G[User Confirmation]
+    G --> H[Health Checks]
+    H --> I[Rollback Procedures]
+    
+    classDef error fill:#ffe0cc,stroke:#a06000,stroke-width:1px
+    class A,B,C,D,E,F,G,H,I error
+```
+
 ### Fail-Safe Design
 
 All scripts use:
@@ -329,6 +489,29 @@ Every phase has rollback:
 
 ### Bash vs. Python
 
+```mermaid
+flowchart TD
+    subgraph Bash
+        A1[Migration Orchestration]
+        A2[File Manipulation]
+        A3[Context Switching]
+        A1 --> A2 --> A3
+        
+        classDef bash fill:#ccffcc,stroke:#0a0,stroke-width:2px
+        class A1,A2,A3 bash
+    end
+    
+    subgraph Python
+        B1[Data Processing]
+        B2[API Interactions]
+        B3[Parallel Ops]
+        B1 --> B2 --> B3
+        
+        classDef python fill:#ccccff,stroke:#000,stroke-width:2px
+        class B1,B2,B3 python
+    end
+```
+
 **Bash chosen for**:
 
 - Migration orchestration (kubectl, argocd CLI)
@@ -343,6 +526,28 @@ Every phase has rollback:
 
 ### Two-Pass vs. Single-Pass
 
+```mermaid
+flowchart TD
+    subgraph TwoPass
+        A1[Pass 1 - Disarm]
+        A2[Rollback Point]
+        A3[Pass 2 - Cleanup]
+        A1 --> A2 --> A3
+        
+        classDef twoPass fill:#ccffcc,stroke:#0a0,stroke-width:2px
+        class A1,A2,A3 twoPass
+    end
+    
+    subgraph SinglePass
+        B1[Single Pass]
+        B2[No rollback point]
+        B1 --> B2
+        
+        classDef singlePass fill:#ffcccc,stroke:#d00,stroke-width:2px
+        class B1,B2 singlePass
+    end
+```
+
 **Why two passes?**
 
 - ✅ Safer (separation of concerns)
@@ -352,6 +557,29 @@ Every phase has rollback:
 
 ### Bulk Fetching vs. Individual Queries
 
+```mermaid
+flowchart TD
+    subgraph BulkFetching
+        A1[Single API Call]
+        A2[Consistent Snapshot]
+        A3[Efficient Processing]
+        A1 --> A2 --> A3
+        
+        classDef bulk fill:#ccffcc,stroke:#0a0,stroke-width:2px
+        class A1,A2,A3 bulk
+    end
+    
+    subgraph IndividualQueries
+        B1[O(N) API Calls]
+        B2[Inconsistent State]
+        B3[Slow Processing]
+        B1 --> B2 --> B3
+        
+        classDef individual fill:#ffcccc,stroke:#d00,stroke-width:2px
+        class B1,B2,B3 individual
+    end
+```
+
 **Bulk fetching chosen**:
 
 - ✅ Efficient at scale
@@ -360,6 +588,18 @@ Every phase has rollback:
 - ❌ Higher memory usage (acceptable trade-off)
 
 ## Future Enhancements
+
+```mermaid
+flowchart TD
+    A[Parallel Migrations] --> B[CI/CD Integration]
+    B --> C[Real-time Monitoring]
+    C --> D[Automated Rollbacks]
+    D --> E[Terraform Support]
+    E --> F[Notifications]
+    
+    classDef future fill:#f0f8ff,stroke:#000,stroke-width:1px
+    class A,B,C,D,E,F future
+```
 
 Potential improvements:
 

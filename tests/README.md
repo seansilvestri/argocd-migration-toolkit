@@ -2,7 +2,9 @@
 
 Automated test scripts for validating the ArgoCD Migration Toolkit.
 
-## Quick Start
+For detailed information and quick start guide, see the [Test Quick Start Guide](docs/test-quick-start.md) and [Testing Guide](docs/testing-guide.md).
+
+## Command Reference
 
 ```bash
 # Run full test suite (requires Docker)
@@ -17,37 +19,11 @@ make test-run-appset         # Execute ApplicationSet migration test (fast)
 make test-run-path-based     # Execute path-based discovery test (fast)
 make test-verify             # Verify results
 make test-cleanup            # Tear down
-
-# Or call scripts directly
-./tests/setup-test-env.sh              # Setup Kind clusters + ArgoCD
-./tests/run-migration-test.sh          # Execute standard migration
-./tests/run-migration-test-appset.sh   # Execute ApplicationSet migration
-./tests/run-migration-test-path-based.sh # Execute path-based migration
-./tests/verify-migration.sh            # Verify results
-./tests/cleanup-test-env.sh            # Tear down
 ```
 
 ## Iterative Testing Workflow
 
-The test setup is designed for iteration:
-
-```bash
-# Setup once (slow - creates clusters and installs ArgoCD)
-make test-setup
-
-# Then iterate quickly (all tests use committed fixtures):
-make test-run                # Run standard migration (repeatable)
-make test-run-appset         # Run ApplicationSet migration (repeatable)
-make test-run-path-based     # Run path-based discovery (repeatable)
-make test-verify             # Check results
-
-# When done:
-make test-cleanup
-```
-
-This allows you to:
-
-- Keep clusters running between test runs
+The test setup is designed for iteration. For details, see the [Test Quick Start Guide](docs/test-quick-start.md).
 - Modify migration scripts and re-test quickly
 - Debug issues without recreating infrastructure
 - Test all migration scenarios (standard, ApplicationSet, path-based)

@@ -10,6 +10,8 @@ Testing the migration toolkit requires:
 2. A test workload to migrate
 3. Access to both control planes and the workload cluster
 
+**For a quick start, see the [Test Quick Start Guide](test-quick-start.md)**.
+
 ## Testing Approaches
 
 ### Option 1: Automated Testing with Make (Recommended)
@@ -32,28 +34,7 @@ sudo mv ./kind /usr/local/bin/kind
 
 #### Quick Start
 
-```bash
-# Run complete test suite (setup → migrate → verify → cleanup)
-make test-full               # Standard parent-based migration
-make test-full-appset        # ApplicationSet migration
-make test-full-path-based    # Path-based discovery migration
-
-# Or run step-by-step for iterative testing:
-
-# 1. Setup clusters and ArgoCD (one-time, ~5-10 minutes)
-make test-setup
-
-# 2. Run migration test (fast, can repeat - uses committed fixtures)
-make test-run                # Standard migration
-make test-run-appset         # ApplicationSet migration
-make test-run-path-based     # Path-based discovery
-
-# 3. Verify zero-downtime migration
-make test-verify
-
-# 4. Cleanup when done
-make test-cleanup
-```
+For a quick start guide, see the [Test Quick Start Guide](test-quick-start.md).
 
 #### What Gets Created
 
@@ -538,3 +519,51 @@ After successful testing:
 4. Schedule migration window
 5. Prepare rollback plan
 6. Execute with confidence!
+
+## Common Test Failures and Troubleshooting
+
+### Test Failure: "Zero downtime violation detected"
+
+**Symptom**: Test reports that workload pods were restarted during migration.
+
+**Solution**:
+1. Check `test-results/restart-analysis.txt` for details
+2. Verify that `monitor-restarts.sh` was running during migration
+3. Check for manual interventions during the test
+4. Ensure no other processes are modifying workloads
+
+### Test Failure: "Application not migrated"
+
+**Symptom**: Applications remain in source control plane.
+
+**Solution**:
+1. Check ArgoCD logs: `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server`
+2. Verify finalizers were properly removed
+3. Check for errors in `disarm-source.sh` output
+4. Ensure target control plane is healthy
+
+### Test Failure: "Finalizers not removed"
+
+**Symptom**: Source applications still have finalizers after disarm phase.
+
+**Solution**:
+1. Check `disarm-source.sh` logs
+2. Verify `kubectl get application -o json | jq '.items[].metadata.finalizers'`
+3. Check for permission issues
+4. Ensure ArgoCD is properly authenticated
+
+### Test Failure: "Repository not found"
+
+**Symptom**: `argocd_validate.py` fails with repository not found error.
+
+**Solution**:
+
+```bash
+# Add repository to ArgoCD
+argocd repo add git@github.com:yourorg/repo.git --ssh-private-key-path ~/.ssh/id_rsa
+
+# Or use bootstrap option
+python3 scripts/validation/argocd_validate.py \
+    --tests-file tests.yaml \
+    --bootstrap-repo-config '{"repoURL": "git@github.com:org/repo.git", ...}'
+```
