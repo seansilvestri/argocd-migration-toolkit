@@ -80,5 +80,15 @@ clean:
 	@rm -rf runbooks/test-*.md
 	@echo "✅ Cleanup complete"
 
+# Run shell script tests
+test-shell:
+	@echo "🧪 Running shell script tests..."
+	@python3 tests/test_generate_runbook.py
+	@python3 tests/test_prep_commit_a.py
+	@python3 tests/test_disarm_source.py
+	@python3 tests/test_cleanup_source.py
+	@python3 tests/test_sync_target_apps.py
+	@python3 tests/test_prep_commit_b_cleanup.py
+
 # Alias for backward compatibility
 test: test-full

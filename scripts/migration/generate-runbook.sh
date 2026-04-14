@@ -155,6 +155,20 @@ resolve_runbook_entry() {
 }
 
 ensure_app_files() {
+    # Validate explicitly provided app files first
+    for path in "${APP_FILE_PATHS[@]}"; do
+        if [[ ! -f "$path" ]]; then
+            echo "❌ App file not found: $path"
+            echo "   Pass one or more valid --app-file <path> arguments (relative or absolute)."
+            exit 1
+        fi
+        # Check if file is readable
+        if [[ ! -r "$path" ]]; then
+            echo "❌ App file not readable: $path"
+            exit 1
+        fi
+    done
+
     if (( ${#APP_FILE_PATHS[@]} > 0 )); then
         return
     fi
@@ -192,6 +206,7 @@ ensure_app_files
 declare -a APP_FILE_NAMES=()
 declare -a APP_FILE_TARGET_PATHS=()
 for path in "${APP_FILE_PATHS[@]}"; do
+
     real="$(python3 - "$path" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
