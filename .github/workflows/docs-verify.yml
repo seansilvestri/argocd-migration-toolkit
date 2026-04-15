@@ -1,0 +1,30 @@
+name: Documentation Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check README exists
+      run: |
+        if [ ! -f README.md ]; then
+          echo "README.md is missing!"
+          exit 1
+        fi
+
+    - name: Check documentation files
+      run: |
+        for file in docs/*.md; do
+          if [ ! -f "$file" ]; then
+            echo "$file is missing!"
+            exit 1
+          fi
+        done
