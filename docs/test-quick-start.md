@@ -55,6 +55,7 @@ make test-setup
 make test-run                # Standard migration
 make test-run-appset         # ApplicationSet migration
 make test-run-path-based     # Path-based discovery
+make test-argocd-validate    # Run ArgoCD validation test (new)
 
 # Verify results
 make test-verify
@@ -130,7 +131,25 @@ Common issues and solutions:
 
 For detailed troubleshooting, see the [Testing Guide](testing-guide.md).
 
-## 🎉 Next Steps
+## � Validation Testing
+
+For quick validation of ArgoCD control plane health:
+
+```bash
+# Run validation test only
+make test-argocd-validate
+
+# Or run as part of unit tests
+make test-unit
+```
+
+The validation test verifies that:
+- ArgoCD can connect to repositories
+- ArgoCD can connect to clusters
+- Application dry-run syncs work correctly
+- Target ArgoCD is ready for migration
+
+## �🎉 Next Steps
 
 After successful testing:
 1. **Review test results** in `test-results/`

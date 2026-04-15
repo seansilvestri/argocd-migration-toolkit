@@ -60,6 +60,7 @@ make test-run                # Run standard migration (repeatable)
 make test-run-appset         # Run ApplicationSet migration (repeatable)
 make test-run-path-based     # Run path-based discovery (repeatable)
 make test-verify             # Check results
+make test-argocd-validate    # Run ArgoCD validation test
 
 # When done:
 make test-cleanup
@@ -296,6 +297,28 @@ Use your actual staging environment to test before production.
 3. **Document everything** - capture screenshots, logs, metrics
 4. **Practice rollback** - intentionally trigger rollback scenarios
 5. **Time the migration** - understand how long it takes
+
+### Validation Testing
+
+The ArgoCD validation test provides a way to verify that the ArgoCD control plane is functioning correctly before performing a migration.
+
+**Purpose:**
+- Pre-migration verification: Ensures target ArgoCD is ready
+- Smoke testing: Quick check that ArgoCD can connect to repositories and clusters
+- Dry-run capability: Tests application sync without making changes
+- Automated testing: Part of CI/CD pipeline for regression testing
+
+**Usage:**
+```bash
+# Run validation test
+make test-argocd-validate
+
+# Run with all unit tests
+make test-unit
+```
+
+**Test Configuration:**
+The validation test uses a YAML configuration file (`tests/test-configs/validation-test.yaml`) with test definitions for specific applications.
 
 ## Testing Checklist
 

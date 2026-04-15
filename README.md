@@ -116,8 +116,10 @@ App-of-Apps (e.g., cluster.apps)            ← We migrate THIS
 
 - [Quick Start](docs/quick-start.md) - Get started in 5 minutes
 - [Testing Guide](docs/testing-guide.md) - Test the toolkit safely before production
+- [Test Quick Start](docs/test-quick-start.md) - Quick start guide for testing
 - [Architecture](docs/architecture.md) - Design decisions and patterns
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+- [Contributing](CONTRIBUTING.md) - Contribution guidelines
 
 ## 🔑 Key Technical Insights
 
