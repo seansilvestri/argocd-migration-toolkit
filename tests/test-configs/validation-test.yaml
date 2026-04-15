@@ -1,0 +1,17 @@
+config:
+  repoURL: http://git-server.default.svc.cluster.local:3000/gitea/test-repo.git
+  path: apps
+  targetRevision: master
+  project: default
+  destinationNamespace: default
+  argoServer: https://argocd.example.com
+
+tests:
+  - name: guestbook-app
+    repoURL: http://git-server.default.svc.cluster.local:3000/gitea/test-repo.git
+    path: apps/guestbook
+    targetRevision: master
+    destination:
+      name: workload-cluster
+      namespace: default
+    active: true
