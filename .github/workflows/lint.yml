@@ -1,0 +1,31 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Install shellcheck
+      run: sudo apt-get install -y shellcheck
+
+    - name: Lint bash scripts
+      run: find scripts -name "*.sh" -exec shellcheck -x {} \;
+
+    - name: Install Python dependencies
+      run: pip install flake8
+
+    - name: Lint Python scripts
+      run: find . -name "*.py" -exec flake8 {} \;

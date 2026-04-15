@@ -1,0 +1,25 @@
+name: Unit Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: make test-deps
+
+    - name: Run unit tests
+      run: make test-unit
+      # Note: Integration tests should be run manually or in a separate workflow
+      # to avoid long CI wait times on every pull request

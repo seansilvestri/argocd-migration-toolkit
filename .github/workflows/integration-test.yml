@@ -1,0 +1,26 @@
+name: Integration Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Runs every Monday at midnight
+  workflow_dispatch:  # Can be triggered manually
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: make test-deps
+
+    - name: Run full integration tests
+      run: make test-full
+      # Note: This can be a long-running test
+      # Runs weekly to catch integration issues

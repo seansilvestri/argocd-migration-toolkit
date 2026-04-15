@@ -1,0 +1,19 @@
+name: Makefile Verification
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  makefile-verification:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Verify Makefile syntax
+      run: make help
+      # Quick verification that Makefile syntax is correct
+      # Note: test-setup/test-cleanup omitted as they require Docker/Kind
+      # and would make CI too slow
+  
