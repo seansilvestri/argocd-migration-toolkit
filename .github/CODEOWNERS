@@ -1,0 +1,28 @@
+# Code Owners for ArgoCD Migration Toolkit
+#
+# This file defines default reviewers for different parts of the codebase.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository-with-code-owners for more information.
+
+# Default owner for the entire repository
+*       @seansilvestri
+
+# Scripts directory - bash scripts and migration tools
+/scripts/       @seansilvestri
+
+# Python scripts
+/scripts/**/*.py @seansilvestri
+
+# Documentation
+/docs/          @seansilvestri
+README.md       @seansilvestri
+CONTRIBUTING.md @seansilvestri
+
+# Tests
+/tests/         @seansilvestri
+
+# Examples and templates
+/examples/       @seansilvestri
+/templates/      @seansilvestri
+
+# Policies
+/policies/       @seansilvestri
