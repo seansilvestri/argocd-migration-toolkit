@@ -18,7 +18,7 @@ jobs:
         python-version: '3.9'
 
     - name: Install dependencies
-      run: make test-deps
+      run: pip install -r requirements.txt
 
     - name: Run full integration tests
       run: make test-full
